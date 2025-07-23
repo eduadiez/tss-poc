@@ -1,0 +1,23 @@
+{
+    "config": {
+        "cipher": "aes-256-ctr",
+        "ciphertext": "f72a236e1a419a7eca4af1bb01862cec4b107a0554948ee5c6f6530bb79a32ad75cda3c0fd9242551b016376e02c2b9dafcdff4504bd1576cbeaa8234ea0790acae52dd373fa2d598ecb22fec905bf8055981b64145efd5c4c5b4449de4f0b6388f40876a915e76a7ace66128bc5dfc1461e915533755586788a37186673953e7c7f162399ee69b7cdd5e5713a9813d7dded045475926fef18dd643e5e5a50181d2f39a6c567b83b903e5f85001d39a4beb16a28a9ca3ddfbca26502330f03b3be0502c2f891635ef1005588a8d2a45f62a66fb34eb9e5fe56bc812ae8667efb3f118e32159dc1ea3b0bddaa041113ab3a600a4ad6f358e64df3ab2ae4138b4804b759cc76f1c2403c80b455f6f9fde802dad6e21e8482f7b7b223c2b2fbe6f5d7e2079be8f45bac7b635f90ce0aaf14d68aa9198c8b254c4a2bfa34bc1c4cec730d8f0e1481620d0e353ba622f08d6f2a115c8966b3a280ca700c159702f6818881698cd8597691df84e44517df27a8478ae70fec2411b90948970635b26ae497afe7b1c41c77cf0424ceca8056cf3ffbc41e0e826120708681631e4580b667272b472caf92ef5f2552b519fe9026828747901e663a0c8574efb8e50cbbaa929dc4dc53b177af73d02d140d24fbabf49ca124fb1185b5b1de6fd36c94c59093e132a84b6dbaf99270ccfe550e9a098a50d97458085331af31f9655a07069ad3579db5938c629245000e7f300d8cac9d3f718eefddc73b525adc318882988efce4b15dfa56cd2d",
+        "cipherparams": {
+            "iv": "7b9eb8f61ec61a0de7048649f3c8ee60"
+        },
+        "kdf": "Argon2id",
+        "kdfparams": {
+            "Memory": 65536,
+            "Iterations": 13,
+            "Parallelism": 4,
+            "salt_length": 16,
+            "key_length": 48,
+            "Salt": "c74b327d8e9e67f51ee221f84c36c35d"
+        },
+        "mac": "2ccedd6ae97b7fe0592b480840b3eebaa408d752408d5ba93f20af263d4adfce"
+    },
+    "listen": "/ip4/0.0.0.0/tcp/54067",
+    "log_level": "info",
+    "profile_addr": "",
+    "Home": "test3"
+}
