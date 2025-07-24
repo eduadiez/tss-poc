@@ -19,7 +19,7 @@ type TSSConfig struct {
 	Password        string
 	ChannelID       string
 	ChannelPassword string
-	Message         string
+	Message         []byte
 	LogLevel        string
 }
 
@@ -28,6 +28,8 @@ type TSSResult struct {
 	Signature     string
 	RecoveredAddr string
 	MessageHash   string
+	SignedTx      string
+	FromAddr      string
 }
 
 // SignMessage performs TSS signing with the given configuration
@@ -48,8 +50,10 @@ func SignMessage(config TSSConfig) (*TSSResult, error) {
 	// Initialize log level
 	initLogLevel(config.LogLevel)
 
-	// Create Ethereum message hash
-	messageHash := setEthereumMessage(config.Message)
+	// Convert hash to big.Int and store in config
+	hashBigInt := new(big.Int)
+	hashBigInt.SetString(hex.EncodeToString(config.Message), 16)
+	common.TssCfg.Message = hashBigInt.String()
 
 	// Create and start TSS client
 	c := client.NewTssClient(&common.TssCfg, client.SignMode, false)
@@ -60,50 +64,26 @@ func SignMessage(config TSSConfig) (*TSSResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to start TSS client: %w", err)
 	}
-	//fmt.Printf("sig: %s\n", hex.EncodeToString(sig))
-	//fmt.Printf("sigRecovery: %s\n", hex.EncodeToString(sigRecovery))
-
-	// Prepare signature with recovery byte
-	//sigWithV := make([]byte, 65)
-	//copy(sigWithV[:64], sig)
-	//sigWithV[64] = 1 // v should be 0 or 1 (or 27/28 for some libraries)
 
 	// Recover public key from signature
-	pubKey, err := crypto.SigToPub(messageHash, sig)
+	pubKey, err := crypto.SigToPub(config.Message, sig)
 	if err != nil {
+		logger.Errorf("failed to recover pubkey: %w", err)
 		return nil, fmt.Errorf("failed to recover pubkey: %w", err)
 	}
 
 	// Compute the address
 	recoveredAddr := crypto.PubkeyToAddress(*pubKey)
+	fmt.Printf("recoveredAddr: %s\n", recoveredAddr.Hex())
 
 	// Return results
 	result := &TSSResult{
 		Signature:     hex.EncodeToString(sig),
 		RecoveredAddr: recoveredAddr.Hex(),
-		MessageHash:   hex.EncodeToString(messageHash),
+		MessageHash:   hex.EncodeToString(config.Message),
 	}
 
 	return result, nil
-}
-
-// setEthereumMessage creates an Ethereum-style message hash
-func setEthereumMessage(message string) []byte {
-	// Create the Ethereum-style message prefix
-	prefix := fmt.Sprintf("\x19Ethereum Signed Message:\n%d", len(message))
-
-	// Combine prefix and message
-	prefixedMessage := append([]byte(prefix), []byte(message)...)
-
-	// Hash the message
-	hash := crypto.Keccak256(prefixedMessage)
-
-	// Convert hash to big.Int and store in config
-	hashBigInt := new(big.Int)
-	hashBigInt.SetString(hex.EncodeToString(hash), 16)
-	common.TssCfg.Message = hashBigInt.String()
-
-	return hash
 }
 
 // initLogLevel sets up logging levels for various components
