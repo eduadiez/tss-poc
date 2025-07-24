@@ -247,10 +247,9 @@ func main() {
 		fmt.Printf("Signature: %s\n", result.Signature)
 		fmt.Printf("Recovered Address: %s\n", result.RecoveredAddr)
 		fmt.Printf("Message Hash: %s\n", result.MessageHash)
-		if signingMode == TxMode && result.FromAddr != "" {
-			fmt.Printf("From Address: %s\n", result.FromAddr)
+		if signingMode == TxMode {
+			fmt.Printf("Signed Tx: %s\n", result.SignedTx)
 		}
-		fmt.Printf("Signed Tx: %s\n", result.SignedTx)
 	}
 
 	logger.Info("TSS signing completed successfully")

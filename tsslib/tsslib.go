@@ -74,8 +74,6 @@ func SignMessage(config TSSConfig) (*TSSResult, error) {
 
 	// Compute the address
 	recoveredAddr := crypto.PubkeyToAddress(*pubKey)
-	fmt.Printf("recoveredAddr: %s\n", recoveredAddr.Hex())
-
 	// Return results
 	result := &TSSResult{
 		Signature:     hex.EncodeToString(sig),

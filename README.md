@@ -34,11 +34,18 @@ A comprehensive implementation of Threshold Signature Scheme (TSS) for Ethereum 
 
 3. **Install dependencies**:
    ```bash
-   go mod download
+   cd tss
+   go mod tidy
+   cd ..
+   go mod tidy
    ```
 
-4. **Build the binary**:
+4. **Build the binaries**:
    ```bash
+   cd tss
+   go build -o tss-cli main.go
+   mv ./tss-cli ..
+   cd ..
    go build -o tss-signer cmd/tss-signer/main.go
    ```
 
@@ -49,9 +56,9 @@ tss-poc/
 ├── cmd/
 │   └── tss-signer/          # Command-line interface
 │       └── main.go
-├── tsslib/                  # TSS library
+├── tsslib/                  # TSS library wrapper
 │   └── tsslib.go
-├── tss/                     # TSS submodule (BNB Chain TSS implementation)
+├── tss/                     # TSS submodule (forked BNB Chain TSS implementation)
 │   ├── client/
 │   ├── common/
 │   ├── server/
@@ -71,17 +78,98 @@ tss-poc/
 
 ## ⚙️ Configuration
 
-The TSS system requires configuration files for each participant. These should be placed in the appropriate keystore directories:
+The TSS system requires a multi-step configuration process to set up the distributed signing environment. Follow these steps in order:
 
-- `keystore/test1/default/` - Configuration for test environment 1
-- `keystore/test2/default/` - Configuration for test environment 2  
-- `keystore/test3/default/` - Configuration for test environment 3
+### Step 1: Initialize Keystores
 
-Each configuration includes:
-- Party information
-- Network settings
-- Cryptographic parameters
-- Communication channels
+First, create the initial file structure and keystores for each participant:
+
+```bash
+# Initialize keystore for signer 1
+./tss-cli init --home ./keystore/signer1 --vault_name "default" --moniker "signer1" --password "123456789"
+
+# Initialize keystore for signer 2  
+./tss-cli init --home ./keystore/signer2 --vault_name "default" --moniker "signer2" --password "123456789"
+
+# Initialize keystore for signer 3
+./tss-cli init --home ./keystore/signer3 --vault_name "default" --moniker "signer3" --password "123456789"
+```
+
+**What this does**: Creates the necessary directory structure and configuration files for each TSS participant.
+
+### Step 2: Generate Channel ID
+
+Create a secure communication channel for the TSS participants:
+
+```bash
+./tss-cli channel --channel_expire 30
+```
+
+**What this does**: Generates a unique channel ID that will be used by all participants to communicate securely during the TSS operations. The `--channel_expire 30` sets the channel to expire in 30 days.
+
+**Note**: Save the generated channel ID - you'll need it for the next step.
+
+### Step 3: Generate Distributed Keys
+
+Run the key generation process on all participants simultaneously. This is a distributed process where all parties must participate:
+
+```bash
+# Run on signer 1 (replace CHANNEL_ID with the actual ID from step 2)
+./tss-cli keygen --home ./keystore/signer1 --vault_name "default" --parties 3 --threshold 1 --password "123456789" --channel_password "123456789" --channel_id CHANNEL_ID
+
+# Run on signer 2 (replace CHANNEL_ID with the actual ID from step 2)
+./tss-cli keygen --home ./keystore/signer2 --vault_name "default" --parties 3 --threshold 1 --password "123456789" --channel_password "123456789" --channel_id CHANNEL_ID
+
+# Run on signer 3 (replace CHANNEL_ID with the actual ID from step 2)
+./tss-cli keygen --home ./keystore/signer3 --vault_name "default" --parties 3 --threshold 1 --password "123456789" --channel_password "123456789" --channel_id CHANNEL_ID
+```
+
+**Parameters explained**:
+- `--parties 3`: Total number of participants in the TSS scheme
+- `--threshold 1`: Minimum number of participants required to sign (1 means any single party can sign)
+- `--channel_id`: The channel ID generated in step 2
+- `--channel_password`: Password for the secure channel
+
+**Important**: All three keygen commands must be run simultaneously for the distributed key generation to succeed.
+
+### Configuration Directory Structure
+
+After successful configuration, your directory structure should look like this:
+
+```
+keystore/
+├── signer1/
+│   └── default/          # Configuration for signer 1
+│       ├── config.json
+│       ├── keygen.json
+│       └── ...
+├── signer2/
+│   └── default/          # Configuration for signer 2
+│       ├── config.json
+│       ├── keygen.json
+│       └── ...
+└── signer3/
+    └── default/          # Configuration for signer 3
+        ├── config.json
+        ├── keygen.json
+        └── ...
+```
+
+### Configuration Contents
+
+Each configuration directory contains:
+- **Party information**: Participant details and network addresses
+- **Network settings**: P2P communication parameters
+- **Cryptographic parameters**: TSS-specific security settings
+- **Communication channels**: Secure channel configurations
+- **Key shares**: Distributed key material (never complete keys)
+
+### Security Notes
+
+- **Passwords**: Use strong, unique passwords in production
+- **Channel security**: The channel password should be shared securely among participants
+- **Key generation**: This is a critical security operation - ensure all participants are trusted
+- **Backup**: Safely backup the keystore directories after successful key generation
 
 ## 🎯 Usage
 
@@ -97,92 +185,201 @@ The `tss-signer` binary provides a comprehensive CLI for TSS operations:
 
 #### Message Signing
 
-```bash
-# Basic message signing with default parameters
-./tss-signer -message="Hello World"
+The TSS system allows any configured participant to sign messages independently. Here are different ways to sign messages:
 
-# With custom configuration
+##### Basic Message Signing
+
+Sign a message using any of the configured participants:
+
+```bash
+# Sign with signer 1
+./tss-signer -home=./keystore/signer1 -message="Hello World"
+
+# Sign with signer 2  
+./tss-signer -home=./keystore/signer2 -message="Hello World"
+
+# Sign with signer 3
+./tss-signer -home=./keystore/signer3 -message="Hello World"
+```
+
+**Note**: Since we configured with `--threshold 1`, two participants are needed to sign messages
+
+##### Advanced Configuration
+
+Use custom parameters for more control:
+
+```bash
 ./tss-signer \
-  -home=test2 \
+  -home=./keystore/signer1 \
   -vault=default \
   -password=123456789 \
-  -channelId=1116C145287 \
+  -channelId=YOUR_CHANNEL_ID \
   -channelPassword=123456789 \
   -message="Test message" \
   -logLevel=debug
-
-# Output as JSON
-./tss-signer -message="Hello World" -json
 ```
+
+##### JSON Output Format
+
+Get structured output for programmatic use:
+
+```bash
+# Basic JSON output
+./tss-signer -home=./keystore/signer1 -message="Hello World" -json
+
+# JSON with debug logging
+./tss-signer -home=./keystore/signer2 -message="Test message" -logLevel=debug -json
+```
+
+##### Message Signing Examples
+
+```bash
+# Simple message signing
+./tss-signer -home=./keystore/signer1 -message="Hello World"
+
+# Sign with custom vault
+./tss-signer -home=./keystore/signer2 -vault=myvault -message="Custom message"
+
+# Debug mode for troubleshooting
+./tss-signer -home=./keystore/signer3 -message="Debug test" -logLevel=debug
+
+# JSON output for automation
+./tss-signer -home=./keystore/signer1 -message="API test" -json
+
+# Show help
+./tss-signer -help
+```
+
+#### Transaction Signing
+
+The TSS system can also sign Ethereum transactions using the `-mode=tx` parameter:
+
+##### Basic Transaction Signing
+
+```bash
+# Sign a transaction with signer 1
+./tss-signer -home=./keystore/signer1 -mode=tx -to=0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6 -value=1000000000000000000
+
+# Sign a transaction with signer 2
+./tss-signer -home=./keystore/signer2 -mode=tx -to=0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6 -value=1000000000000000000
+```
+
+##### Transaction Signing with Custom Parameters
+
+```bash
+./tss-signer \
+  -home=./keystore/signer1 \
+  -mode=tx \
+  -to=0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6 \
+  -value=1000000000000000000 \
+  -gasLimit=21000 \
+  -gasPrice=20000000000 \
+  -nonce=5 \
+  -chainId=1 \
+  -data=0x1234567890abcdef
+```
+
+##### Transaction Signing and Broadcasting
+
+```bash
+# Sign and send transaction
+./tss-signer \
+  -home=./keystore/signer1 \
+  -mode=tx \
+  -to=0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6 \
+  -value=1000000000000000000 \
+  -chainId=11155111 \
+  -gasPrice=1174319 \
+  -rpc=https://eth-sepolia.public.blastapi.io \
+  -send
+```
+
+##### Transaction Signing Examples
+
+```bash
+# Basic transaction signing
+./tss-signer -home=./keystore/signer1 -mode=tx -to=0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6 -value=1000000000000000000
+
+# Sign with custom gas parameters
+./tss-signer -home=./keystore/signer2 -mode=tx -to=0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6 -value=1000000000000000000 -gasLimit=50000 -gasPrice=30000000000
+
+# Sign with JSON output
+./tss-signer -home=./keystore/signer3 -mode=tx -to=0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6 -value=1000000000000000000 -json
+
+# Debug mode for transaction signing
+./tss-signer -home=./keystore/signer1 -mode=tx -to=0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6 -value=1000000000000000000 -logLevel=debug
+```
+
+**Note**: In transaction mode (`-mode=tx`), the `-to` address is required, and the system automatically creates and signs the transaction hash.
 
 ### Command-Line Flags
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `home` | `test1` | Home directory for configuration |
-| `vault` | `default` | Vault name |
+| `home` | `test1` | Home directory containing keystore configuration |
+| `vault` | `default` | Vault name within the keystore |
 | `password` | `123456789` | Password for the vault |
-| `channelId` | `1116C145287` | Channel ID |
-| `channelPassword` | `123456789` | Channel Password |
-| `message` | `123456789` | Message to sign |
+| `channelId` | `1116C145287` | Channel ID for TSS communication |
+| `channelPassword` | `123456789` | Password for the secure channel |
+| `mode` | `message` | Signing mode: `message` for messages, `tx` for transactions |
+| `message` | `123456789` | Message to sign (for message mode) |
 | `logLevel` | `info` | Log level (debug, info, warn, error) |
-| `json` | `false` | Output results as JSON |
+| `json` | `false` | Output results as JSON format |
 
-### Examples
+#### Transaction Mode Flags (use with `-mode=tx`)
 
-#### Basic usage
-```bash
-./tss-signer -message="Hello World"
-```
-
-#### Debug mode with JSON output
-```bash
-./tss-signer -message="Test message" -logLevel=debug -json
-```
-
-#### Custom configuration
-```bash
-./tss-signer \
-  -home=test3 \
-  -vault=myvault \
-  -password=mypassword \
-  -message="Custom message"
-```
-
-#### Show help
-```bash
-./tss-signer -help
-```
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `to` | - | Recipient address (required for tx mode) |
+| `value` | `0` | Amount in wei (for tx mode) |
+| `gasLimit` | `21000` | Gas limit (for tx mode) |
+| `gasPrice` | `20000000000` | Gas price in wei (for tx mode) |
+| `nonce` | `0` | Transaction nonce (for tx mode) |
+| `data` | - | Transaction data in hex (for tx mode) |
+| `chainId` | `1` | Chain ID (for tx mode) |
+| `rpc` | - | Ethereum RPC URL (e.g., http://localhost:8545) |
+| `send` | `false` | Send the signed transaction (requires -rpc) |
+| `etherscan` | `https://sepolia.etherscan.io` | Etherscan URL for transaction viewing |
 
 ## 📊 Output Format
 
 ### Human-Readable Output
+
+#### Message Mode Output
 ```
 Signature: 0x568b17caef811c510b413e6f20dd05f3306f85c79de667f6be07ed35421a23a35d184eb7483efe48bdfecc6f24d85051b96b1bcdcd9a4c3c75fa4b0e2d5f84ce01
 Recovered Address: 0xf6844377aE73B4Ae396A75405807f862E2f220d4
 Message Hash: 0x1234567890abcdef...
-Configuration:
-{
-  "p2p": {
-    "listen": "/ip4/0.0.0.0/tcp/8080"
-  },
-  "log_level": "info",
-  ...
-}
+```
+
+#### Transaction Mode Output
+```
+Signature: 0x568b17caef811c510b413e6f20dd05f3306f85c79de667f6be07ed35421a23a35d184eb7483efe48bdfecc6f24d85051b96b1bcdcd9a4c3c75fa4b0e2d5f84ce01
+Recovered Address: 0xf6844377aE73B4Ae396A75405807f862E2f220d4
+Message Hash: 0x1234567890abcdef...
+Signed Tx: 0xf86c8085174876e800830186a094742d35cc6634c0532925a3b8d4c9db96c4b4d8b687038d7ea4c68000801ca0...
+From Address: 0xf6844377aE73B4Ae396A75405807f862E2f220d4
 ```
 
 ### JSON Output
+
+#### Message Mode JSON
+```json
+{
+  "signature": "0x568b17caef811c510b413e6f20dd05f3306f85c79de667f6be07ed35421a23a35d184eb7483efe48bdfecc6f24d85051b96b1bcdcd9a4c3c75fa4b0e2d5f84ce01",
+  "recoveredAddr": "0xf6844377aE73B4Ae396A75405807f862E2f220d4",
+  "messageHash": "0x1234567890abcdef..."
+}
+```
+
+#### Transaction Mode JSON
 ```json
 {
   "signature": "0x568b17caef811c510b413e6f20dd05f3306f85c79de667f6be07ed35421a23a35d184eb7483efe48bdfecc6f24d85051b96b1bcdcd9a4c3c75fa4b0e2d5f84ce01",
   "recoveredAddr": "0xf6844377aE73B4Ae396A75405807f862E2f220d4",
   "messageHash": "0x1234567890abcdef...",
-  "config": {
-    "p2p": {
-      "listen": "/ip4/0.0.0.0/tcp/8080"
-    },
-    "log_level": "info"
-  }
+  "signedTx": "0xf86c8085174876e800830186a094742d35cc6634c0532925a3b8d4c9db96c4b4d8b687038d7ea4c68000801ca0...",
+  "fromAddr": "0xf6844377aE73B4Ae396A75405807f862E2f220d4"
 }
 ```
 
@@ -256,83 +453,6 @@ func SignMessage(config TSSConfig) (*TSSResult, error)
 
 Performs TSS signing with the given configuration and returns the signature, recovered address, message hash, and configuration JSON.
 
-## 🔍 Troubleshooting
-
-### Common Issues
-
-#### 1. TSS Configuration Not Found
-```
-Error: failed to read config
-```
-**Solution**: Verify that TSS configuration files exist in the specified keystore directory.
-
-#### 2. Submodule Issues
-```
-Error: cannot find package github.com/bnb-chain/tss
-```
-**Solution**: Initialize and update the submodules:
-```bash
-git submodule update --init --recursive
-```
-
-#### 3. Address Inconsistency
-If you're getting different recovered addresses for different messages, this indicates a signature recovery issue. The library now uses the TSS public key directly to ensure consistent address recovery.
-
-### Debug Mode
-
-Enable debug logging for detailed troubleshooting:
-
-```bash
-./tss-signer -message="Test message" -logLevel=debug
-```
-
-## 🔐 Security Considerations
-
-- **Private Keys**: TSS eliminates the need for single private keys by distributing signing authority
-- **Threshold Security**: Messages require a threshold of participants to sign
-- **No Single Point of Failure**: No single party can sign messages alone
-- **Key Management**: Keys are never reconstructed in a single location
-- **Consistent Address Recovery**: Uses TSS public key for reliable address recovery
-
-## 📝 Examples
-
-### Complete Workflow Examples
-
-#### 1. Message Signing Workflow
-```bash
-# Sign a message
-./tss-signer -message="Hello from TSS!" -home=test1 -json
-
-# Verify the signature (using external tools)
-# The recovered address should match the expected signer
-```
-
-#### 2. Debug Mode for Troubleshooting
-```bash
-# Sign with debug logging
-./tss-signer -message="Test message" -logLevel=debug -home=test2
-```
-
-#### 3. Custom Configuration
-```bash
-# Use custom keystore and parameters
-./tss-signer \
-  -home=test3 \
-  -vault=myvault \
-  -password=mypassword \
-  -channelId=MYCHANNEL123 \
-  -channelPassword=mychannelpass \
-  -message="Custom message" \
-  -json
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 ## 📄 License
 
