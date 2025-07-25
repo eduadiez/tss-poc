@@ -11,6 +11,8 @@ require (
 
 replace github.com/bnb-chain/tss => ./tss
 
+replace github.com/bnb-chain/tss-lib/v2 => ./tss-lib
+
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
