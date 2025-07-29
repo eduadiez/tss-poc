@@ -1,3 +1,4 @@
 [submodule "tss"]
 	path = tss
 	url = https://github.com/eduadiez/tss
+	branch = p2p_dependencies_update
